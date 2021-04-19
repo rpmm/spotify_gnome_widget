@@ -1,0 +1,8 @@
+{
+    "description": "Display metadata of the currently playing media in the status panel",
+    "name": "Spotify Media Widget",
+    "shell-version": [ "3.38" ],
+    "url": "",
+    "uuid": "spotify_media_widget",
+    "version": 1
+}
