@@ -80,7 +80,7 @@ function Update_Song_Info() {
 
 function init() {
 
-    log(`initializing ${Me.metadata.name}`);
+    log(`Initializing ${Me.metadata.name}`);
     
     song_info = new St.Label({
         text: "Extension loading...",
@@ -103,13 +103,13 @@ function init() {
 }
 
 function enable() {
-    log(`enabling ${Me.metadata.name}`);
+    log(`Enabling ${Me.metadata.name}`);
     Main.panel._centerBox.insert_child_at_index(container, 1);
     timeout = Mainloop.timeout_add_seconds(1.0, Update_Song_Info);
 }
 
 function disable() {
-    log(`disabling ${Me.metadata.name}`);
+    log(`Disabling ${Me.metadata.name}`);
     Mainloop.source_remove(timeout);
     Main.panel._centerBox.remove_child(container);
 }
