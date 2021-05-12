@@ -2,12 +2,18 @@ const { St, GLib, Clutter } = imports.gi;
 const Main = imports.ui.main;
 const Mainloop = imports.mainloop;
 const ByteArray = imports.byteArray;
+const ExtensionUtils = imports.misc.extensionUtils;
+const Me = ExtensionUtils.getCurrentExtension();
+
 
 let song_info, timeout, container, status_icon, cleaned_status;
 
 // Restart GNOME-Shell
 // Alt+F2, restart/r
 // {HOME}/.local/share/gnome-shell/extensions
+
+// To monitor for bug
+// journalctl -f -o cat /usr/bin/gnome-shell
 
 function Update_Song_Info() {
 
@@ -74,40 +80,36 @@ function Update_Song_Info() {
 
 function init() {
 
-    log("Starting my own extension...")
-    
-    // spotify_icon = new St.Icon({
-    //     style_class: 'system-status-icon',
-    //     icon_name: 'spotify-client',
-    // });
+    log(`initializing ${Me.metadata.name}`);
     
     song_info = new St.Label({
         text: "Extension loading...",
-        y_align: Clutter.ActorAlign.CENTER,
+        y_align: Clutter.ActorAlign.CENTER
     });
     
     status_icon = new St.Icon({
         style_class: 'system-status-icon',
-        icon_name: 'process-working',
+        icon_name: 'process-working'
     });
 
     container = new St.BoxLayout({
         style_class: 'panel-button',
         reactive: true,
-        track_hover: true,
+        track_hover: true
     });
     
-    // container.insert_child_at_index(spotify_icon, 0);
     container.insert_child_at_index(status_icon, 0);
     container.insert_child_at_index(song_info, 1);
 }
 
 function enable() {
+    log(`enabling ${Me.metadata.name}`);
     Main.panel._centerBox.insert_child_at_index(container, 1);
     timeout = Mainloop.timeout_add_seconds(1.0, Update_Song_Info);
 }
 
 function disable() {
+    log(`disabling ${Me.metadata.name}`);
     Mainloop.source_remove(timeout);
     Main.panel._centerBox.remove_child(container);
 }

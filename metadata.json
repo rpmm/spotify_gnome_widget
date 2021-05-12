@@ -1,8 +1,8 @@
 {
-    "description": "Display metadata of the currently playing media in the status panel",
-    "name": "Spotify Media Widget",
-    "shell-version": [ "3.38" ],
-    "url": "",
     "uuid": "spotify_media_widget",
-    "version": 1
+    "name": "Spotify Media Widget",
+    "description": "Display metadata of the currently playing media in the status panel",
+    "shell-version": [ "3.38" , "40.0"],
+    "url": "https://github.com/rpmm/spotify_gnome_widget",
+    "version": 0.1
 }
