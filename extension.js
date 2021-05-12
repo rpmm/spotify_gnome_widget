@@ -5,6 +5,9 @@ const ByteArray = imports.byteArray;
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 
+const MprisIface = loadInterfaceXML('org.mpris.MediaPlayer2');
+const MprisProxy = Gio.DBusProxy.makeProxyWrapper(MprisIface);
+
 
 let song_info, timeout, container, status_icon, cleaned_status;
 
@@ -80,10 +83,11 @@ function Update_Song_Info() {
 
 function init() {
 
-    log(`Initializing ${Me.metadata.name}`);
+    log(`   ### Initializing ${Me.metadata.name}`);
     
     song_info = new St.Label({
         text: "Extension loading...",
+        x_align: Clutter.ActorAlign.CENTER,
         y_align: Clutter.ActorAlign.CENTER
     });
     
@@ -98,18 +102,19 @@ function init() {
         track_hover: true
     });
     
-    container.insert_child_at_index(status_icon, 0);
-    container.insert_child_at_index(song_info, 1);
+    container.add_child(status_icon);
+    container.add_child(song_info);
+
 }
 
 function enable() {
-    log(`Enabling ${Me.metadata.name}`);
-    Main.panel._centerBox.insert_child_at_index(container, 1);
+    log(`   ### Enabling ${Me.metadata.name}`);
+    Main.panel._centerBox.add_child(container);
     timeout = Mainloop.timeout_add_seconds(1.0, Update_Song_Info);
 }
 
 function disable() {
-    log(`Disabling ${Me.metadata.name}`);
+    log(`   ### Disabling ${Me.metadata.name}`);
     Mainloop.source_remove(timeout);
     Main.panel._centerBox.remove_child(container);
 }
