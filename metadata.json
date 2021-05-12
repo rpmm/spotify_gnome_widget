@@ -1,5 +1,5 @@
 {
-    "uuid": "spotify_gnome_widget@rej919@gmail.com",
+    "uuid": "spotify_gnome_widget@rej919.gmail.com",
     "name": "Spotify Gnome Widget",
     "description": "Display metadata of the currently playing media in the status panel",
     "shell-version": [ "3.38" , "40.0"],
