@@ -1,15 +1,7 @@
-const { St, GLib, Clutter } = imports.gi;
+const { St, Gio, GLib, Clutter } = imports.gi;
 const Main = imports.ui.main;
-const Mainloop = imports.mainloop;
-const ByteArray = imports.byteArray;
-const ExtensionUtils = imports.misc.extensionUtils;
-const Me = ExtensionUtils.getCurrentExtension();
+const Me = imports.misc.extensionUtils.getCurrentExtension();
 
-const MprisIface = loadInterfaceXML('org.mpris.MediaPlayer2');
-const MprisProxy = Gio.DBusProxy.makeProxyWrapper(MprisIface);
-
-
-let song_info, timeout, container, status_icon, cleaned_status;
 
 // Restart GNOME-Shell
 // Alt+F2, restart/r
@@ -18,104 +10,129 @@ let song_info, timeout, container, status_icon, cleaned_status;
 // To monitor for bug
 // journalctl -f -o cat /usr/bin/gnome-shell
 
-function Update_Song_Info() {
 
-    // Check if Spotify is running
-    try {
-        var [ok, playerstatus, err, exit] = GLib.spawn_command_line_sync('playerctl -p spotify status');
-    } catch (error) {
-        song_info.set_text("Error in Plugin!");
-        log("error: ", error);
-        return true;
+const ifaceXml = `
+<node> 
+    <interface name="org.mpris.MediaPlayer2.Player"> 
+        <method name="PlayPause"/> 
+        <method name="Next"/> 
+        <method name="Previous"/> 
+        <property name="CanGoNext" type="b" access="read"/>
+        <property name="CanGoPrevious" type="b" access="read"/>
+        <property name="CanPlay" type="b" access="read"/>
+        <property name="Metadata" type="a{sv}" access="read"/>
+        <property name="PlaybackStatus" type="s" access="read"/>
+    </interface> 
+</node>`;
+
+// Pass the XML string to make a re-usable proxy class for an interface proxies.
+const TestProxy = Gio.DBusProxy.makeProxyWrapper(ifaceXml);
+let proxy = null;
+let proxyPropId = 0;
+let busWatchId = null;
+
+let song_info, container, status_icon;
+
+
+function UpdateMediaInfo(proxy) {
+
+    if (proxy.Metadata === null) {
+        return;
     }
 
-    if (playerstatus.length > 0) {
+    let title = proxy.Metadata['xesam:title'].unpack()
+    let artist = proxy.Metadata['xesam:artist'].deepUnpack()
+    let playbackStatus = proxy.PlaybackStatus
 
-        // Array for metadata strings
-        var arr = [];
-        
-        // Assign status icon
-        cleaned_status = ByteArray.toString(playerstatus).trim();
-        if (cleaned_status == "Playing") {
-            status_icon.set_icon_name("media-playback-start-symbolic");
-        }
-        else {
-            status_icon.set_icon_name("media-playback-pause-symbolic");
-        }
-                
-        try {
-            // Get metadata
-            var [ok, album,  err, exit] = GLib.spawn_command_line_sync('playerctl -p spotify metadata album');
-            var [ok, artist, err, exit] = GLib.spawn_command_line_sync("playerctl -p spotify metadata artist");
-            var [ok, title,  err, exit] = GLib.spawn_command_line_sync('playerctl -p spotify metadata title');
+    song_info.set_text(`${artist} - ${title}`)
 
-            // Strip trailing empty spaces and newlines
-            cleaned_album  = ByteArray.toString(album).trim();
-            cleaned_artist = ByteArray.toString(artist).trim();
-            cleaned_title  = ByteArray.toString(title).trim();
-
-            if (cleaned_artist == ""){ // In case of podcasts
-                arr.push(cleaned_album);
-            }
-            else {
-                arr.push(cleaned_artist);
-            }
-            
-            arr.push(cleaned_title);
-
-            song_info.set_text(arr.join('  -  '));
-
-		}
-		catch(error) {
-			song_info.set_text("Error in Plugin!");
-			log("error: ", error);
-			return true;
-		}
+    if (playbackStatus === "Playing") {
+        status_icon.set_icon_name("media-playback-start-symbolic");
     }
-
     else {
-        song_info.set_text("Offline");
-        status_icon.set_icon_name("");
+        status_icon.set_icon_name("media-playback-pause-symbolic");
     }
 
-    return true;
+}
+
+function onNameAppeared(connection, name, name_owner) {
+    print(`"${name}" appeared on the session bus`);
+
+    try {
+        proxy = new TestProxy(
+            Gio.DBus.session,
+            'org.mpris.MediaPlayer2.spotify',
+            '/org/mpris/MediaPlayer2'
+        );
+        
+    } catch (e) {
+        logError(e);
+        return;
+    }
+
+    UpdateMediaInfo(proxy);
+
+    // To watch property changes, you can connect to the `g-properties-changed`
+    // GObject signal with `connect()`
+    proxyPropId = proxy.connect('g-properties-changed', (proxy_, changed, invalidated) => {
+        UpdateMediaInfo(proxy);
+    });
+}
+
+function onNameVanished(connection, name) {
+    print(`"${name}" vanished from the session bus`);
+    
+    song_info.set_text("Spotify Offline");
+    status_icon.set_icon_name("media-playback-stop-symbolic");
+
+    if (proxy !== null) {
+        proxy.disconnect(proxyPropId);
+        proxy = null;
+    }
 }
 
 function init() {
-
-    log(`   ### Initializing ${Me.metadata.name}`);
-    
-    song_info = new St.Label({
-        text: "Extension loading...",
-        x_align: Clutter.ActorAlign.CENTER,
-        y_align: Clutter.ActorAlign.CENTER
-    });
+    log(`Initializing extension "${Me.metadata.name}"`);
     
     status_icon = new St.Icon({
         style_class: 'system-status-icon',
         icon_name: 'process-working'
     });
 
+    song_info = new St.Label({
+        text: "Extension loading...",
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    
     container = new St.BoxLayout({
         style_class: 'panel-button',
         reactive: true,
-        track_hover: true
+        track_hover: true,
     });
     
     container.add_child(status_icon);
     container.add_child(song_info);
 
+    container.connect("button-press-event", () => {
+        log('Clicked the container');
+    });
 }
 
 function enable() {
-    log(`   ### Enabling ${Me.metadata.name}`);
+    log(`Enabling extension "${Me.metadata.name}"`);
     Main.panel._centerBox.add_child(container);
-    timeout = Mainloop.timeout_add_seconds(1.0, Update_Song_Info);
+        
+    busWatchId = Gio.bus_watch_name(
+        Gio.BusType.SESSION,
+        'org.mpris.MediaPlayer2.spotify',
+        Gio.BusNameWatcherFlags.NONE,
+        onNameAppeared,
+        onNameVanished
+    );
 }
 
 function disable() {
-    log(`   ### Disabling ${Me.metadata.name}`);
-    Mainloop.source_remove(timeout);
+    log(`Disabling extension "${Me.metadata.name}"`);
+    Gio.bus_unwatch_name(busWatchId)
     Main.panel._centerBox.remove_child(container);
 }
-
