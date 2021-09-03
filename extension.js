@@ -33,6 +33,17 @@ let busWatchId = null;
 
 let song_info, container, status_icon;
 
+function playPause() {
+    if (proxy === null) {
+        return;
+    }
+    try {
+        let value = proxy.PlayPauseSync();
+        print(`PlayPause: ${value}`);
+    } catch (e) {
+        logError(`PlayPause: ${e.message}`);
+    }
+}
 
 function UpdateMediaInfo(proxy) {
 
@@ -44,6 +55,12 @@ function UpdateMediaInfo(proxy) {
     let artist = proxy.Metadata['xesam:artist'].deepUnpack()
     let playbackStatus = proxy.PlaybackStatus
 
+    if (title === "") {
+        song_info.set_text("Spotify");
+        status_icon.set_icon_name("media-playback-stop-symbolic");
+        return;
+    }
+
     song_info.set_text(`${artist} - ${title}`)
 
     if (playbackStatus === "Playing") {
@@ -52,7 +69,6 @@ function UpdateMediaInfo(proxy) {
     else {
         status_icon.set_icon_name("media-playback-pause-symbolic");
     }
-
 }
 
 function onNameAppeared(connection, name, name_owner) {
@@ -64,7 +80,7 @@ function onNameAppeared(connection, name, name_owner) {
             'org.mpris.MediaPlayer2.spotify',
             '/org/mpris/MediaPlayer2'
         );
-        
+
     } catch (e) {
         logError(e);
         return;
@@ -81,7 +97,7 @@ function onNameAppeared(connection, name, name_owner) {
 
 function onNameVanished(connection, name) {
     print(`"${name}" vanished from the session bus`);
-    
+
     song_info.set_text("Spotify Offline");
     status_icon.set_icon_name("media-playback-stop-symbolic");
 
@@ -93,7 +109,7 @@ function onNameVanished(connection, name) {
 
 function init() {
     log(`Initializing extension "${Me.metadata.name}"`);
-    
+
     status_icon = new St.Icon({
         style_class: 'system-status-icon',
         icon_name: 'process-working'
@@ -103,25 +119,25 @@ function init() {
         text: "Extension loading...",
         y_align: Clutter.ActorAlign.CENTER,
     });
-    
+
     container = new St.BoxLayout({
         style_class: 'panel-button',
         reactive: true,
         track_hover: true,
     });
-    
+
     container.add_child(status_icon);
     container.add_child(song_info);
 
     container.connect("button-press-event", () => {
-        log('Clicked the container');
+        playPause();
     });
 }
 
 function enable() {
     log(`Enabling extension "${Me.metadata.name}"`);
     Main.panel._centerBox.add_child(container);
-        
+
     busWatchId = Gio.bus_watch_name(
         Gio.BusType.SESSION,
         'org.mpris.MediaPlayer2.spotify',
