@@ -37,22 +37,33 @@ function playPause() {
     if (proxy === null) {
         return;
     }
-    try {
-        let value = proxy.PlayPauseSync();
-        print(`PlayPause: ${value}`);
-    } catch (e) {
-        logError(`PlayPause: ${e.message}`);
-    }
+
+    // The wrapper function will assign both synchronous and asynchronous variants
+    // of methods on the object
+    // try {
+    //     let value = proxy.PlayPauseAsync();
+    //     print(`PlayPause: ${value}`);
+    // } catch (e) {
+    //     logError(`PlayPause: ${e.message}`);
+    // }
+
+    proxy.PlayPauseRemote((value, error) => {
+        if (error !== null) {
+            logError(error);
+            return;
+        }
+    });
 }
 
-function UpdateMediaInfo(proxy) {
-
-    if (proxy.Metadata === null) {
+function UpdateMediaInfo() {
+    if (proxy === null) {
         return;
     }
 
+    let trackid = proxy.Metadata['mpris:trackid'].unpack()
     let title = proxy.Metadata['xesam:title'].unpack()
     let artist = proxy.Metadata['xesam:artist'].deepUnpack()
+    let album = proxy.Metadata['xesam:album'].deepUnpack()
     let playbackStatus = proxy.PlaybackStatus
 
     if (title === "") {
@@ -61,7 +72,12 @@ function UpdateMediaInfo(proxy) {
         return;
     }
 
-    song_info.set_text(`${artist} - ${title}`)
+    if (trackid.includes("episode")) {
+        song_info.set_text(`${album} - ${title}`)
+    }
+    else {
+        song_info.set_text(`${artist} - ${title}`)
+    }
 
     if (playbackStatus === "Playing") {
         status_icon.set_icon_name("media-playback-start-symbolic");
@@ -86,12 +102,12 @@ function onNameAppeared(connection, name, name_owner) {
         return;
     }
 
-    UpdateMediaInfo(proxy);
+    UpdateMediaInfo();
 
     // To watch property changes, you can connect to the `g-properties-changed`
     // GObject signal with `connect()`
     proxyPropId = proxy.connect('g-properties-changed', (proxy_, changed, invalidated) => {
-        UpdateMediaInfo(proxy);
+        UpdateMediaInfo();
     });
 }
 
